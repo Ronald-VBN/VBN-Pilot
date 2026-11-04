@@ -1,0 +1,454 @@
+# modules/bi/superset/module.yaml
+# yaml-language-server: $schema=../../../cli/resources/module.schema.json
+apiVersion: cds/v1alpha1
+kind: Module
+
+metadata:
+  name: superset
+  category: bi
+  version: "0.1.0"
+  displayName: Superset
+  description: >
+    Apache Superset BI service with a metadata database binding.
+
+spec:
+  runtime:
+    type: container
+    service:
+      name: superset
+      ports:
+        - name: http
+          containerPort: 8088
+          protocol: TCP
+      networks:
+        - default
+
+  configSchema:
+    type: object
+    additionalProperties: false
+    required:
+      - webPort
+      - secretKeyFrom
+      - adminUser
+      - metadataDatabase
+    properties:
+      webPort:
+        type: integer
+        minimum: 1
+        maximum: 65535
+        default: 8088
+
+      webServer:
+        type: object
+        additionalProperties: false
+        default: {}
+        properties:
+          mode:
+            type: string
+            enum:
+              - production
+              - development
+            default: production
+            description: >
+              Web serving mode (issue #216). "production" (default) serves
+              through a production process manager (gunicorn) using the
+              worker and timeout settings below, with graceful shutdown on
+              SIGTERM; "development" uses Superset's built-in development
+              server (`superset run`), intended for local development only
+              and rejected by validation in production profiles (E140).
+          workers:
+            type: integer
+            minimum: 1
+            maximum: 64
+            default: 4
+            description: >
+              Number of production web workers serving requests. Only used
+              when mode is "production".
+          timeoutSeconds:
+            type: integer
+            minimum: 5
+            maximum: 600
+            default: 60
+            description: >
+              Per-request timeout in seconds before a production worker is
+              recycled. Only used when mode is "production".
+
+      image:
+        type: object
+        additionalProperties: false
+        default: {}
+        properties:
+          source:
+            type: string
+            enum:
+              - build
+              - registry
+            default: build
+            description: >
+              Selects how the superset-init and superset services obtain
+              their image. "build" (default) builds the image locally from
+              images/superset/base/Dockerfile. "registry" pulls the
+              already published, scanned, and signed image from
+              config.image.registry instead of building it, avoiding a
+              local rebuild. Requires image.tag to be set.
+          registry:
+            type: string
+            enum:
+              - dockerhub
+              - ghcr
+            default: dockerhub
+            description: >
+              Registry to pull from when image.source is "registry".
+              "dockerhub" (default) pulls from
+              docker.io/ronaldsoeverein/superset. "ghcr" pulls from
+              ghcr.io/ronaldhensbergen/cds-superset instead. Both are
+              published by the same .github/workflows/publish-images.yml
+              run, but their tag schemes differ slightly: GHCR has no
+              version-derived tag, only sha-<sha>/latest -- see
+              docs/image-signing.md.
+          tag:
+            type: string
+            # cds-registry-tag-source: docker/apache/superset -- kept in
+            # sync with the apache/superset base tag pinned in
+            # images/superset/base/Dockerfile by Renovate; see
+            # renovate.json's customManagers. Used as the default tag when
+            # `cds render/up/test --image-source registry` is passed
+            # without an explicit config.image.tag.
+            default: "6.1.0"
+            description: >
+              Registry tag to pull when image.source is "registry", e.g. a
+              version published by .github/workflows/publish-images.yml
+              (derived from the apache/superset base version pinned in
+              images/superset/base/Dockerfile). Ignored when image.source
+              is "build". Defaults to the pinned apache/superset version
+              above, kept in sync by Renovate; pass an explicit
+              config.image.tag to override.
+
+      kubernetesService:
+        type: object
+        additionalProperties: false
+        default: {}
+        properties:
+          type:
+            type: string
+            enum:
+              - ClusterIP
+              - NodePort
+            default: ClusterIP
+          nodePort:
+            type: integer
+            minimum: 0
+            maximum: 32767
+            default: 0
+
+      secretKeyFrom:
+        type: string
+        pattern: "^secrets\\.[a-zA-Z0-9_-]+$"
+
+      adminUser:
+        type: object
+        additionalProperties: false
+        required:
+          - username
+          - passwordFrom
+          - email
+        properties:
+          username:
+            type: string
+            minLength: 1
+          passwordFrom:
+            type: string
+            pattern: "^secrets\\.[a-zA-Z0-9_-]+$"
+          email:
+            type: string
+            minLength: 3
+
+      metadataDatabase:
+        type: object
+        additionalProperties: false
+        required:
+          - contractRef
+        properties:
+          contractRef:
+            type: string
+            pattern: "^[a-z0-9-]+\\.[a-z0-9-]+$"
+
+      analyticsDatabase:
+        type: object
+        additionalProperties: false
+        required:
+          - contractRef
+        properties:
+          contractRef:
+            type: string
+            pattern: "^[a-z0-9-]+\\.[a-z0-9-]+$"
+
+      cacheService:
+        type: object
+        additionalProperties: false
+        default: {}
+        properties:
+          contractRef:
+            type: string
+            pattern: "^[a-z0-9-]+\\.[a-z0-9-]+$"
+            description: "Reference to cache-service binding (e.g., keydb.cache-service)"
+
+      identityProvider:
+        type: object
+        additionalProperties: false
+        required:
+          - contractRef
+          - clientId
+          - clientSecretFrom
+        properties:
+          contractRef:
+            type: string
+            pattern: "^[a-z0-9-]+\\.[a-z0-9-]+$"
+            description: Reference to an oidc-provider contract.
+          clientId:
+            type: string
+            minLength: 1
+            description: OAuth client ID registered in the identity provider.
+          clientSecretFrom:
+            type: string
+            pattern: "^secrets\\.[a-zA-Z0-9_-]+$"
+            description: Secret reference for the OAuth client secret.
+
+      healthcheck:
+        type: object
+        additionalProperties: false
+        default: {}
+        properties:
+          enabled:
+            type: boolean
+            default: true
+
+  consumes:
+    - name: metadata-database
+      contract:
+        kind: sql-database
+      required: true
+      mappedFrom: spec.config.metadataDatabase
+
+    - name: analytics-database
+      contract:
+        kind: sql-database
+      required: true
+      mappedFrom: spec.config.analyticsDatabase
+
+    - name: cache-service
+      contract:
+        kind: cache-service
+      required: false
+      mappedFrom: spec.config.cacheService
+
+    - name: oidc-provider
+      contract:
+        kind: oidc-provider
+      required: false
+      mappedFrom: spec.config.identityProvider
+
+  provides:
+    - name: http-service
+      contract:
+        kind: http-service
+        spec:
+          portFrom: spec.config.webPort
+          # ${service.dns}: the Compose service DNS name, so any instance
+          # id works (issue #1010).
+          host: ${service.dns}
+          port: ${config.webPort}
+          healthPath: /health
+          protocol: http
+
+  implementation:
+    kind: docker-compose
+    targets:
+      - docker-compose
+      - kubernetes
+    compose:
+      services:
+        superset-init:
+          image: apache/superset:6.1.0-dev@sha256:be6a6d4938aeb7888bd29cd4b84fa37c6d071c36ae19fef8b929024bf6d5ab8f
+          read_only: true
+          cap_drop:
+            - ALL
+          security_opt:
+            - no-new-privileges:true
+          tmpfs:
+            - /tmp:rw,noexec,nosuid,nodev
+            - /app/superset_home:rw,noexec,nosuid,nodev
+          # The stock upstream image has no CDS config baked in; mount the
+          # CDS superset_config.py (secret key, session hardening, OIDC)
+          # over the image's pythonpath entry.
+          volumes:
+            - type: bind
+              source: images/superset/superset_config.py
+              target: /app/pythonpath/superset_config.py
+              read_only: true
+          entrypoint:
+            - /bin/bash
+            - -c
+          command:
+            - |
+              set -e
+
+              retry() {
+                local attempts=5 delay=5 n=1
+                until "$$@"; do
+                  if (( n >= attempts )); then
+                    echo "Command failed after $$attempts attempts: $$*" >&2
+                    return 1
+                  fi
+                  echo "Attempt $$n/$$attempts failed; retrying in $$delay seconds: $$*" >&2
+                  n=$$((n + 1))
+                  sleep "$$delay"
+                done
+              }
+
+              if [[ -n "$$SUPERSET__SQLALCHEMY_DATABASE_URI" ]]; then
+                retry superset db upgrade
+                if [[ -n "$$SUPERSET_ADMIN_USERNAME" && -n "$$SUPERSET_ADMIN_PASSWORD" && -n "$$SUPERSET_ADMIN_EMAIL" ]]; then
+                  superset fab create-admin \
+                    --username "$$SUPERSET_ADMIN_USERNAME" \
+                    --password "$$SUPERSET_ADMIN_PASSWORD" \
+                    --email "$$SUPERSET_ADMIN_EMAIL" \
+                    --firstname "Admin" \
+                    --lastname "User" || echo "Admin user already exists or creation failed"
+                fi
+                retry superset init
+              fi
+          environment:
+            SUPERSET_SECRET_KEY: "${config.secretKeyFrom}"
+            SUPERSET_ADMIN_USERNAME: "${config.adminUser.username}"
+            SUPERSET_ADMIN_PASSWORD: "${config.adminUser.passwordFrom}"
+            SUPERSET_ADMIN_EMAIL: "${config.adminUser.email}"
+            SUPERSET__SQLALCHEMY_DATABASE_URI: "${bindings.metadata-database.connectionUri}"
+            SUPERSET_ANALYTICS_DATABASE_URI: "${bindings.analytics-database.connectionUri}"
+            SUPERSET__REDIS_URL: "${bindings.cache-service.connectionUri}"
+            SUPERSET__CACHE_CONFIG: '{"CACHE_TYPE": "redis", "CACHE_REDIS_URL": "${bindings.cache-service.connectionUri}", "CACHE_DEFAULT_TIMEOUT": 300}'
+          healthcheck:
+            disable: true
+          restart: "no"
+          production:
+            image: local/superset:custom
+            build:
+              context: ../../../
+              dockerfile: images/superset/base/Dockerfile
+            entrypoint:
+              - /app/docker/init.sh
+            command: []
+            # The hardened image bakes superset_config.py in; do not shadow it
+            # with a host bind (in Kubernetes the bind would become an
+            # emptyDir).
+            volumes: []
+        superset:
+          image: apache/superset:6.1.0-dev@sha256:be6a6d4938aeb7888bd29cd4b84fa37c6d071c36ae19fef8b929024bf6d5ab8f
+          read_only: true
+          cap_drop:
+            - ALL
+          security_opt:
+            - no-new-privileges:true
+          tmpfs:
+            - /tmp:rw,noexec,nosuid,nodev
+            - /app/superset_home:rw,noexec,nosuid,nodev
+          # Same CDS config mount as superset-init: the stock upstream image
+          # does not carry superset_config.py.
+          volumes:
+            - type: bind
+              source: images/superset/superset_config.py
+              target: /app/pythonpath/superset_config.py
+              read_only: true
+          ports:
+            - "${config.webPort}:8088"
+          depends_on:
+            superset-init:
+              condition: service_completed_successfully
+          environment:
+            SUPERSET_SECRET_KEY: "${config.secretKeyFrom}"
+            SUPERSET__SQLALCHEMY_DATABASE_URI: "${bindings.metadata-database.connectionUri}"
+            SUPERSET_ANALYTICS_DATABASE_URI: "${bindings.analytics-database.connectionUri}"
+            # Redis cache configuration
+            SUPERSET__REDIS_URL: "${bindings.cache-service.connectionUri}"
+            SUPERSET__CACHE_CONFIG: '{"CACHE_TYPE": "redis", "CACHE_REDIS_URL": "${bindings.cache-service.connectionUri}", "CACHE_DEFAULT_TIMEOUT": 300}'
+            # Production serving mode (issue #216): mode/workers/timeout are
+            # consumed by images/superset/entrypoint-web.sh.
+            CDS_WEBSERVER_MODE: "${config.webServer.mode}"
+            CDS_WEBSERVER_WORKERS: "${config.webServer.workers}"
+            CDS_WEBSERVER_TIMEOUT: "${config.webServer.timeoutSeconds}"
+            CDS_OIDC_ISSUER_URL: "${ifNonempty:bindings.oidc-provider.issuerUrl,,}"
+            CDS_OIDC_CLIENT_ID: "${ifNonempty:config.identityProvider.clientId,,}"
+            CDS_OIDC_CLIENT_SECRET: "${ifNonempty:config.identityProvider.clientSecretFrom,,}"
+          healthcheck:
+            conditionallyEnabledFrom: config.healthcheck.enabled
+            test:
+              - CMD
+              - python
+              - -c
+              - "import urllib.request; urllib.request.urlopen('http://localhost:8088/health')"
+            start_period: 180s
+            interval: 10s
+            timeout: 5s
+            retries: 20
+          production:
+            image: local/superset:custom
+            build:
+              context: ../../../
+              dockerfile: images/superset/base/Dockerfile
+            # Keep the image-baked superset_config.py (see superset-init).
+            volumes: []
+            # Production profiles must not publish the UI directly on the
+            # host: the TLS reverse proxy is the sole host-published entry
+            # point (CDS-SEC-074, issue #981). Learning/dev profiles keep
+            # the direct publish for local access.
+            ports: []
+
+    kubernetes:
+      workloads:
+        superset:
+          kind: Deployment
+          # apache/superset runs as the superset user, uid/gid 1000.
+          podSecurityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+            fsGroup: 1000
+          containers:
+            - superset
+          # Compose orders this with depends_on: service_completed_successfully.
+          # Kubernetes guarantees the same ordering natively via an init container.
+          initContainers:
+            - superset-init
+          service:
+            type: "${config.kubernetesService.type}"
+            ports:
+              - name: http
+                port: "${config.webPort}"
+                targetPort: 8088
+                nodePort: "${config.kubernetesService.nodePort}"
+          containerOverrides:
+            superset:
+              # Explicit container port so the k8s render does not depend
+              # on the compose host-publish (cleared in production, #981).
+              ports:
+                - name: http
+                  containerPort: 8088
+          resources:
+            superset:
+              requests:
+                cpu: 200m
+                memory: 1Gi
+              limits:
+                memory: 3Gi
+            superset-init:
+              requests:
+                cpu: 100m
+                memory: 512Mi
+              limits:
+                memory: 2Gi
+          waitFor:
+            - host: "${bindings.metadata-database.host}"
+              port: "${bindings.metadata-database.port}"
+              description: Superset runs migrations against its metadata database on startup.
+            - host: "${bindings.cache-service.host}"
+              port: "${bindings.cache-service.port}"

@@ -1,0 +1,420 @@
+name: local-dagster-postgres-superset
+services:
+  postgres:
+    image: postgres:18@sha256:979bccfde35445db618c65107d27d08c6c21339d8dc3ad4c830c6633947be0e4
+    user: postgres
+    init: true
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 256
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,uid=999,gid=999,mode=1777
+    - /var/run/postgresql:rw,noexec,nosuid,nodev,uid=999,gid=999,mode=3775
+    hostname: postgres
+    ports:
+    - 127.0.0.1:5432:5432
+    environment:
+      POSTGRES_PASSWORD: ${CDS_POSTGRES_SUPERUSER_PASSWORD}
+      POSTGRES_INITDB_ARGS: -U postgres --auth-local=password --auth-host=scram-sha-256
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      ANALYTICS_DB_NAME: ${CDS_ANALYTICS_DB_NAME}
+      ANALYTICS_DB_USER: ${CDS_ANALYTICS_DB_USER}
+      ANALYTICS_DB_PASSWORD: ${CDS_ANALYTICS_DB_PASSWORD}
+      DAGSTER_DB_NAME: ${CDS_DAGSTER_DB_NAME}
+      DAGSTER_DB_USER: ${CDS_DAGSTER_DB_USER}
+      DAGSTER_DB_PASSWORD: ${CDS_DAGSTER_DB_PASSWORD}
+      SUPERSET_DB_NAME: ${CDS_SUPERSET_DB_NAME}
+      SUPERSET_DB_USER: ${CDS_SUPERSET_DB_USER}
+      SUPERSET_DB_PASSWORD: ${CDS_SUPERSET_DB_PASSWORD}
+    volumes:
+    - type: bind
+      source: profiles/local-dagster-postgres-superset/init-db.sh
+      target: /docker-entrypoint-initdb.d/init-db.sh
+      read_only: true
+    - postgres-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U postgres
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+    - cds-local
+  dagster-user-code:
+    build:
+      context: .
+      dockerfile: images/dagster/base/Dockerfile
+      args:
+        DB_BACKEND: postgres
+    image: local/dagster:custom
+    restart: always
+    init: true
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,mode=1777
+    - /opt/dagster/dagster_home:rw,noexec,nosuid,nodev,uid=999,gid=999,mode=0700
+    hostname: dagster-user-code
+    command:
+    - dagster
+    - code-server
+    - start
+    - -s
+    - /var/run/dagster/user-code.sock
+    - -f
+    - /app/workdirs/dagster/definitions.py
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - /app/images/dagster/healthcheck.py
+      - --unix
+      - /var/run/dagster/user-code.sock
+      interval: 10s
+      timeout: 15s
+      start_period: 60s
+      retries: 5
+    volumes:
+    - dagster-dagster-io-manager-storage:/tmp/io_manager_storage
+    - dagster-dagster-grpc-socket:/var/run/dagster
+    - type: bind
+      source: workdirs/shared-data
+      target: /app/data/cds
+    - type: bind
+      source: workdirs/dagster/definitions.py
+      target: /app/workdirs/dagster/definitions.py
+      read_only: true
+    - type: bind
+      source: workdirs/dagster/tender_analytics.py
+      target: /app/workdirs/dagster/tender_analytics.py
+      read_only: true
+    - type: bind
+      source: workdirs/dagster/emballage_tool.py
+      target: /app/workdirs/dagster/emballage_tool.py
+      read_only: true
+    environment:
+      DB_BACKEND: postgres
+      DAGSTER_HOME: /opt/dagster/dagster_home
+      EMBALLAGETOOL_DWH_CONNECTION_URI: ${EMBALLAGETOOL_DWH_CONNECTION_URI:-}
+      EMBALLAGETOOL_SOURCE_SCHEMA: ${EMBALLAGETOOL_SOURCE_SCHEMA:-EmballageTool}
+      DAGSTER_DB_HOST: postgres
+      DAGSTER_DB_PORT: 5432
+      DAGSTER_DB_NAME: ${CDS_DAGSTER_DB_NAME}
+      DAGSTER_DB_USER: ${CDS_DAGSTER_DB_USER}
+      DAGSTER_DB_PASSWORD: ${CDS_DAGSTER_DB_PASSWORD}
+      DAGSTER_DB_CONNECTION_URI: postgresql://${CDS_DAGSTER_DB_USER}:${CDS_DAGSTER_DB_PASSWORD}@postgres:5432/${CDS_DAGSTER_DB_NAME}
+      ANALYTICS_DB_HOST: postgres
+      ANALYTICS_DB_PORT: 5432
+      ANALYTICS_DB_NAME: ${CDS_ANALYTICS_DB_NAME}
+      ANALYTICS_DB_USER: ${CDS_ANALYTICS_DB_USER}
+      ANALYTICS_DB_PASSWORD: ${CDS_ANALYTICS_DB_PASSWORD}
+      ANALYTICS_DB_CONNECTION_URI: postgresql://${CDS_ANALYTICS_DB_USER}:${CDS_ANALYTICS_DB_PASSWORD}@postgres:5432/${CDS_ANALYTICS_DB_NAME}
+      CDS_ANALYTICS_DB_HOST: postgres
+      CDS_ANALYTICS_DB_PORT: 5432
+      CDS_ANALYTICS_DB_NAME: ${CDS_ANALYTICS_DB_NAME}
+      CDS_ANALYTICS_DB_USER: ${CDS_ANALYTICS_DB_USER}
+      CDS_ANALYTICS_DB_PASSWORD: ${CDS_ANALYTICS_DB_PASSWORD}
+      CDS_ANALYTICS_DB_CONNECTION_URI: postgresql://${CDS_ANALYTICS_DB_USER}:${CDS_ANALYTICS_DB_PASSWORD}@postgres:5432/${CDS_ANALYTICS_DB_NAME}
+      CDS_DB_ANALYTICS_CONNECTION_URI: postgresql://${CDS_ANALYTICS_DB_USER}:${CDS_ANALYTICS_DB_PASSWORD}@postgres:5432/${CDS_ANALYTICS_DB_NAME}
+      OPENLINEAGE_URL: ''
+      OPENLINEAGE_ENDPOINT: ''
+      OPENLINEAGE_API_KEY: ''
+      OPENLINEAGE_NAMESPACE: dagster
+    networks:
+    - cds-local
+    depends_on:
+      postgres:
+        condition: service_healthy
+  dagster-webserver:
+    build:
+      context: .
+      dockerfile: images/dagster/base/Dockerfile
+      args:
+        DB_BACKEND: postgres
+    image: local/dagster:custom
+    restart: always
+    init: true
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,mode=1777
+    - /opt/dagster/dagster_home:rw,noexec,nosuid,nodev,uid=999,gid=999,mode=0700
+    depends_on:
+      dagster-user-code:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    command:
+    - dagster-webserver
+    - -h
+    - 0.0.0.0
+    - -p
+    - '3000'
+    - -w
+    - workspace.yaml
+    ports:
+    - 3000:3000
+    volumes:
+    - dagster-dagster-io-manager-storage:/tmp/io_manager_storage
+    - type: volume
+      source: dagster-dagster-grpc-socket
+      target: /var/run/dagster
+      read_only: true
+    - type: bind
+      source: workdirs/shared-data
+      target: /app/data/cds
+    environment:
+      DB_BACKEND: postgres
+      DAGSTER_HOME: /opt/dagster/dagster_home
+      EMBALLAGETOOL_DWH_CONNECTION_URI: ${EMBALLAGETOOL_DWH_CONNECTION_URI:-}
+      EMBALLAGETOOL_SOURCE_SCHEMA: ${EMBALLAGETOOL_SOURCE_SCHEMA:-EmballageTool}
+      DAGSTER_DB_HOST: postgres
+      DAGSTER_DB_PORT: 5432
+      DAGSTER_DB_NAME: ${CDS_DAGSTER_DB_NAME}
+      DAGSTER_DB_USER: ${CDS_DAGSTER_DB_USER}
+      DAGSTER_DB_PASSWORD: ${CDS_DAGSTER_DB_PASSWORD}
+      DAGSTER_DB_CONNECTION_URI: postgresql://${CDS_DAGSTER_DB_USER}:${CDS_DAGSTER_DB_PASSWORD}@postgres:5432/${CDS_DAGSTER_DB_NAME}
+      ANALYTICS_DB_HOST: postgres
+      ANALYTICS_DB_PORT: 5432
+      ANALYTICS_DB_NAME: ${CDS_ANALYTICS_DB_NAME}
+      ANALYTICS_DB_USER: ${CDS_ANALYTICS_DB_USER}
+      ANALYTICS_DB_PASSWORD: ${CDS_ANALYTICS_DB_PASSWORD}
+      ANALYTICS_DB_CONNECTION_URI: postgresql://${CDS_ANALYTICS_DB_USER}:${CDS_ANALYTICS_DB_PASSWORD}@postgres:5432/${CDS_ANALYTICS_DB_NAME}
+      OPENLINEAGE_URL: ''
+      OPENLINEAGE_ENDPOINT: ''
+      OPENLINEAGE_API_KEY: ''
+      OPENLINEAGE_NAMESPACE: dagster
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - /app/images/dagster/healthcheck.py
+      - localhost
+      - '3000'
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+    - cds-local
+  dagster-daemon:
+    build:
+      context: .
+      dockerfile: images/dagster/base/Dockerfile
+      args:
+        DB_BACKEND: postgres
+    image: local/dagster:custom
+    restart: on-failure
+    init: true
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,mode=1777
+    - /opt/dagster/dagster_home:rw,noexec,nosuid,nodev,uid=999,gid=999,mode=0700
+    depends_on:
+      dagster-user-code:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    command:
+    - dagster-daemon
+    - run
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - /app/images/dagster/healthcheck.py
+      - --unix
+      - /var/run/dagster/user-code.sock
+      interval: 10s
+      timeout: 15s
+      start_period: 60s
+      retries: 3
+    volumes:
+    - dagster-dagster-io-manager-storage:/tmp/io_manager_storage
+    - type: volume
+      source: dagster-dagster-grpc-socket
+      target: /var/run/dagster
+      read_only: true
+    - type: bind
+      source: workdirs/shared-data
+      target: /app/data/cds
+    environment:
+      DB_BACKEND: postgres
+      DAGSTER_HOME: /opt/dagster/dagster_home
+      DAGSTER_DB_HOST: postgres
+      DAGSTER_DB_PORT: 5432
+      DAGSTER_DB_NAME: ${CDS_DAGSTER_DB_NAME}
+      DAGSTER_DB_USER: ${CDS_DAGSTER_DB_USER}
+      DAGSTER_DB_PASSWORD: ${CDS_DAGSTER_DB_PASSWORD}
+      DAGSTER_DB_CONNECTION_URI: postgresql://${CDS_DAGSTER_DB_USER}:${CDS_DAGSTER_DB_PASSWORD}@postgres:5432/${CDS_DAGSTER_DB_NAME}
+      ANALYTICS_DB_HOST: postgres
+      ANALYTICS_DB_PORT: 5432
+      ANALYTICS_DB_NAME: ${CDS_ANALYTICS_DB_NAME}
+      ANALYTICS_DB_USER: ${CDS_ANALYTICS_DB_USER}
+      ANALYTICS_DB_PASSWORD: ${CDS_ANALYTICS_DB_PASSWORD}
+      ANALYTICS_DB_CONNECTION_URI: postgresql://${CDS_ANALYTICS_DB_USER}:${CDS_ANALYTICS_DB_PASSWORD}@postgres:5432/${CDS_ANALYTICS_DB_NAME}
+      CDS_ANALYTICS_DB_HOST: postgres
+      CDS_ANALYTICS_DB_PORT: 5432
+      CDS_ANALYTICS_DB_NAME: ${CDS_ANALYTICS_DB_NAME}
+      CDS_ANALYTICS_DB_USER: ${CDS_ANALYTICS_DB_USER}
+      CDS_ANALYTICS_DB_PASSWORD: ${CDS_ANALYTICS_DB_PASSWORD}
+      CDS_ANALYTICS_DB_CONNECTION_URI: postgresql://${CDS_ANALYTICS_DB_USER}:${CDS_ANALYTICS_DB_PASSWORD}@postgres:5432/${CDS_ANALYTICS_DB_NAME}
+      CDS_DB_ANALYTICS_CONNECTION_URI: postgresql://${CDS_ANALYTICS_DB_USER}:${CDS_ANALYTICS_DB_PASSWORD}@postgres:5432/${CDS_ANALYTICS_DB_NAME}
+      OPENLINEAGE_URL: ''
+      OPENLINEAGE_ENDPOINT: ''
+      OPENLINEAGE_API_KEY: ''
+      OPENLINEAGE_NAMESPACE: dagster
+    networks:
+    - cds-local
+  keydb:
+    image: eqalpha/keydb:6.3.4@sha256:6537505c42355ca1f571276bddf83f5b750f760f07b2a185a676481791e388ac
+    user: keydb
+    init: true
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 128
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev,uid=999,gid=999,mode=1777
+    - /data:rw,noexec,nosuid,nodev,uid=999,gid=999,mode=0700
+    ports:
+    - 127.0.0.1:6379:6379
+    environment:
+      KEYDB_PASSWORD: ''
+    command:
+    - /bin/sh
+    - -c
+    - exec keydb-server --requirepass "$$KEYDB_PASSWORD"
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - if [ -n "$$KEYDB_PASSWORD" ]; then keydb-cli -a "$$KEYDB_PASSWORD" ping; else
+        keydb-cli ping; fi | grep -q PONG
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+    - cds-local
+  superset-init:
+    image: apache/superset:6.1.0-dev@sha256:be6a6d4938aeb7888bd29cd4b84fa37c6d071c36ae19fef8b929024bf6d5ab8f
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev
+    - /app/superset_home:rw,noexec,nosuid,nodev
+    volumes:
+    - type: bind
+      source: images/superset/superset_config.py
+      target: /app/pythonpath/superset_config.py
+      read_only: true
+    entrypoint:
+    - /bin/bash
+    - -c
+    command:
+    - "set -e\n\nretry() {\n  local attempts=5 delay=5 n=1\n  until \"$$@\"; do\n\
+      \    if (( n >= attempts )); then\n      echo \"Command failed after $$attempts\
+      \ attempts: $$*\" >&2\n      return 1\n    fi\n    echo \"Attempt $$n/$$attempts\
+      \ failed; retrying in $$delay seconds: $$*\" >&2\n    n=$$((n + 1))\n    sleep\
+      \ \"$$delay\"\n  done\n}\n\nif [[ -n \"$$SUPERSET__SQLALCHEMY_DATABASE_URI\"\
+      \ ]]; then\n  retry superset db upgrade\n  if [[ -n \"$$SUPERSET_ADMIN_USERNAME\"\
+      \ && -n \"$$SUPERSET_ADMIN_PASSWORD\" && -n \"$$SUPERSET_ADMIN_EMAIL\" ]]; then\n\
+      \    superset fab create-admin \\\n      --username \"$$SUPERSET_ADMIN_USERNAME\"\
+      \ \\\n      --password \"$$SUPERSET_ADMIN_PASSWORD\" \\\n      --email \"$$SUPERSET_ADMIN_EMAIL\"\
+      \ \\\n      --firstname \"Admin\" \\\n      --lastname \"User\" || echo \"Admin\
+      \ user already exists or creation failed\"\n  fi\n  retry superset init\nfi\n"
+    environment:
+      SUPERSET_SECRET_KEY: ${CDS_SUPERSET_SECRET_KEY}
+      SUPERSET_ADMIN_USERNAME: admin
+      SUPERSET_ADMIN_PASSWORD: ${CDS_SUPERSET_ADMIN_PASSWORD}
+      SUPERSET_ADMIN_EMAIL: admin@example.local
+      SUPERSET__SQLALCHEMY_DATABASE_URI: postgresql://${CDS_SUPERSET_DB_USER}:${CDS_SUPERSET_DB_PASSWORD}@postgres:5432/${CDS_SUPERSET_DB_NAME}
+      SUPERSET_ANALYTICS_DATABASE_URI: postgresql://${CDS_ANALYTICS_DB_USER}:${CDS_ANALYTICS_DB_PASSWORD}@postgres:5432/${CDS_ANALYTICS_DB_NAME}
+      SUPERSET__REDIS_URL: redis://keydb:6379
+      SUPERSET__CACHE_CONFIG: '{"CACHE_TYPE": "redis", "CACHE_REDIS_URL": "redis://keydb:6379",
+        "CACHE_DEFAULT_TIMEOUT": 300}'
+    healthcheck:
+      disable: true
+    restart: 'no'
+    networks:
+    - cds-local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keydb:
+        condition: service_healthy
+  superset:
+    image: apache/superset:6.1.0-dev@sha256:be6a6d4938aeb7888bd29cd4b84fa37c6d071c36ae19fef8b929024bf6d5ab8f
+    read_only: true
+    cap_drop:
+    - ALL
+    security_opt:
+    - no-new-privileges:true
+    tmpfs:
+    - /tmp:rw,noexec,nosuid,nodev
+    - /app/superset_home:rw,noexec,nosuid,nodev
+    volumes:
+    - type: bind
+      source: images/superset/superset_config.py
+      target: /app/pythonpath/superset_config.py
+      read_only: true
+    ports:
+    - 8088:8088
+    depends_on:
+      superset-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      keydb:
+        condition: service_healthy
+    environment:
+      SUPERSET_SECRET_KEY: ${CDS_SUPERSET_SECRET_KEY}
+      SUPERSET__SQLALCHEMY_DATABASE_URI: postgresql://${CDS_SUPERSET_DB_USER}:${CDS_SUPERSET_DB_PASSWORD}@postgres:5432/${CDS_SUPERSET_DB_NAME}
+      SUPERSET_ANALYTICS_DATABASE_URI: postgresql://${CDS_ANALYTICS_DB_USER}:${CDS_ANALYTICS_DB_PASSWORD}@postgres:5432/${CDS_ANALYTICS_DB_NAME}
+      SUPERSET__REDIS_URL: redis://keydb:6379
+      SUPERSET__CACHE_CONFIG: '{"CACHE_TYPE": "redis", "CACHE_REDIS_URL": "redis://keydb:6379",
+        "CACHE_DEFAULT_TIMEOUT": 300}'
+      CDS_WEBSERVER_MODE: production
+      CDS_WEBSERVER_WORKERS: 4
+      CDS_WEBSERVER_TIMEOUT: 60
+      CDS_OIDC_ISSUER_URL: ''
+      CDS_OIDC_CLIENT_ID: ''
+      CDS_OIDC_CLIENT_SECRET: ''
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://localhost:8088/health')
+      start_period: 180s
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks:
+    - cds-local
+volumes:
+  postgres-postgres-data: {}
+  dagster-dagster-io-manager-storage: {}
+  dagster-dagster-grpc-socket: {}
+networks:
+  cds-local:
+    driver: bridge

@@ -1,0 +1,731 @@
+{
+  "version": 2,
+  "profiles": {
+    "local-dagster-postgres-superset": {
+      "requestedProfile": "local-dagster-postgres-superset",
+      "sourceProfile": "profiles/local-dagster-postgres-superset/profile.yaml",
+      "remote": "RonaldHensbergen/composable-data-stack",
+      "ref": "v0.15.0",
+      "commit": "77292ef218dec55629fdb4ceecf2a450b8094dbf",
+      "pinnedCommit": null,
+      "fetchedAt": "2026-11-04T21:26:00.817474+00:00",
+      "assetRoots": [
+        "images/dagster/base/Dockerfile",
+        "images/dagster/dagster.yaml.j2",
+        "images/dagster/entrypoint.sh",
+        "images/dagster/generate_config.py",
+        "images/dagster/hardened/Dockerfile",
+        "images/dagster/healthcheck.py",
+        "images/dagster/requirements-postgres.txt",
+        "images/dagster/requirements.txt",
+        "images/dagster/workspace.yaml",
+        "images/postgres/Dockerfile",
+        "images/postgres/cds-backup-scheduler",
+        "images/postgres/cds-pgbackrest-archive",
+        "images/postgres/cds-pgbackrest-get",
+        "images/postgres/cds-restore",
+        "images/superset/base/Dockerfile",
+        "images/superset/entrypoint-web.sh",
+        "images/superset/init.sh",
+        "images/superset/requirements-uv.txt",
+        "images/superset/requirements.txt",
+        "images/superset/service-worker.js",
+        "images/superset/superset_config.py",
+        "modules/bi/superset",
+        "modules/cache/keydb",
+        "modules/orchestration/dagster",
+        "modules/warehouse/postgres",
+        "profiles/local-dagster-postgres-superset",
+        "runtime/cds_runtime",
+        "shared/__init__.py",
+        "shared/python",
+        "workdirs/dagster",
+        "workdirs/db_roundtrip.py"
+      ],
+      "files": [
+        "images/dagster/base/Dockerfile",
+        "images/dagster/dagster.yaml.j2",
+        "images/dagster/entrypoint.sh",
+        "images/dagster/generate_config.py",
+        "images/dagster/hardened/Dockerfile",
+        "images/dagster/healthcheck.py",
+        "images/dagster/requirements-postgres.txt",
+        "images/dagster/requirements.txt",
+        "images/dagster/workspace.yaml",
+        "images/postgres/Dockerfile",
+        "images/postgres/cds-backup-scheduler",
+        "images/postgres/cds-pgbackrest-archive",
+        "images/postgres/cds-pgbackrest-get",
+        "images/postgres/cds-restore",
+        "images/superset/base/Dockerfile",
+        "images/superset/entrypoint-web.sh",
+        "images/superset/init.sh",
+        "images/superset/requirements-uv.txt",
+        "images/superset/requirements.txt",
+        "images/superset/service-worker.js",
+        "images/superset/superset_config.py",
+        "modules/bi/superset/README.md",
+        "modules/bi/superset/module.yaml",
+        "modules/cache/keydb/README.md",
+        "modules/cache/keydb/module.yaml",
+        "modules/orchestration/dagster/README.md",
+        "modules/orchestration/dagster/module.yaml",
+        "modules/warehouse/postgres/README.md",
+        "modules/warehouse/postgres/module.yaml",
+        "profiles/local-dagster-postgres-superset/README.md",
+        "profiles/local-dagster-postgres-superset/environments/dev.yaml",
+        "profiles/local-dagster-postgres-superset/environments/prod.yaml",
+        "profiles/local-dagster-postgres-superset/init-db.sh",
+        "profiles/local-dagster-postgres-superset/init-db.sql",
+        "profiles/local-dagster-postgres-superset/profile.yaml",
+        "runtime/cds_runtime/__init__.py",
+        "runtime/cds_runtime/adapters/__init__.py",
+        "runtime/cds_runtime/adapters/dagster.py",
+        "runtime/cds_runtime/connections.py",
+        "runtime/cds_runtime/database.py",
+        "runtime/cds_runtime/errors.py",
+        "runtime/cds_runtime/py.typed",
+        "runtime/cds_runtime/redaction.py",
+        "runtime/cds_runtime/resolution.py",
+        "shared/__init__.py",
+        "shared/python/__init__.py",
+        "shared/python/db/__init__.py",
+        "shared/python/db/connection.py",
+        "workdirs/dagster/__init__.py",
+        "workdirs/dagster/definitions.py",
+        "workdirs/dagster/postgres_connection.py",
+        "workdirs/dagster/tender_analytics.py",
+        "workdirs/db_roundtrip.py"
+      ],
+      "fileHashes": {
+        "images/dagster/base/Dockerfile": "2348a6d0f8d39db4bfcbd722acf7bdcde72dd67941aada15129df20d5ee93bbf",
+        "images/dagster/dagster.yaml.j2": "2a9c049db73fd8f48fb945c6c95bb30a1d1db44d3ecfb59cd11f9f77d534520f",
+        "images/dagster/entrypoint.sh": "8ae4e1cd8f14233552dd4e2ca750a42c9b6691e58ed38e536dd67d00cc628d9d",
+        "images/dagster/generate_config.py": "47737583011bb231745a5f3f3058ff00fc9439c9d14eff1c76fbdc4df61bcd7f",
+        "images/dagster/hardened/Dockerfile": "00e0583755f24670021ac5d89ca4920d89f9cab81c61648081e376d870255a6d",
+        "images/dagster/healthcheck.py": "14d58485639a2f9899f32bfd4289abc43da154441d8a8fd6a4bae49ddbc9d83e",
+        "images/dagster/requirements-postgres.txt": "1916aa9f1f4b8a5876de02c6bf12ea49080d909860a89ebd8fd647a6abc119ed",
+        "images/dagster/requirements.txt": "92121c189db30edf35b990de03739961326422f017fca8a5e7458248d74112a4",
+        "images/dagster/workspace.yaml": "ddb639e0b714d13678a8d41075877b41e6d81f7e944a133bf57d685366c4a14c",
+        "images/postgres/Dockerfile": "ab1211ced2c8ea1ee8a56e41852ee95955740285965b268f07abe1411a97ecdf",
+        "images/postgres/cds-backup-scheduler": "4cd5789a68ae15e65f2ee1a4ca00e6ac908eccb21cec32c97aa2a74d070868e9",
+        "images/postgres/cds-pgbackrest-archive": "f3b981bedde0c1ca158558fe87f6c5105102ee9b8a1e822404b671efd08671fa",
+        "images/postgres/cds-pgbackrest-get": "fb8afd5507ab22d27b1609817a15d685e8041d35c9e07dba10cbf4f86bb7bca2",
+        "images/postgres/cds-restore": "ad22431758b94c140e8a6bcdcf8d859fde0db8bc2a32b9a3557646449fe12dd0",
+        "images/superset/base/Dockerfile": "f4b6dac28e18ac8ea32c6abc7ae60e4493ecc60d48474cdb0b6346b2ba8339b5",
+        "images/superset/entrypoint-web.sh": "0e6b77796935b6b8ee6d3b2255116d5d2d6f0fa62f4792224ebfc7896c2dfb3f",
+        "images/superset/init.sh": "a28d81c68b490c5fa69eb0ff28ab9681b829ea683a0c9988bfae3063898b034b",
+        "images/superset/requirements-uv.txt": "f5b74ea5bad4a31af00452d7be53d8661b2d6daa849827f39ac38c192afc0337",
+        "images/superset/requirements.txt": "d7ddf1ff9c8057b31e5edacc9b34b4232497e2ffa149d98bce6a5ae211fecc67",
+        "images/superset/service-worker.js": "2370416e5fc7cb52627f11a2c2a4e5dff62ca9a2bf19e7edbd4ff64f15922849",
+        "images/superset/superset_config.py": "cbea6ebd0a48a51089ced83c79d5b2ea174198760e88653ec13a9d0049ccb93d",
+        "modules/bi/superset/README.md": "1a1295b0127ab05c156396e4cca5936ae5bd02b69d573ee08ce598b2125d3d5d",
+        "modules/bi/superset/module.yaml": "e436f434cdfc5b142aafb250c499934461ddc08add7298e5553544e59b303949",
+        "modules/cache/keydb/README.md": "b5f3fcd882dcd17ede9c2ce8da04c9162f11fa0a779faf9c03d72d41fad22559",
+        "modules/cache/keydb/module.yaml": "fca5b5e20630ab484b36e5cc583f2c862a02fce88d100dc9d5e18e97da921295",
+        "modules/orchestration/dagster/README.md": "21407c7a946f758265b917fe816560690ba8d96dff6820e612679d60a4b354ec",
+        "modules/orchestration/dagster/module.yaml": "4e99eb697819677b09f19d8bb6af376cf3110c69854b6203d1bbc37db614ff8f",
+        "modules/warehouse/postgres/README.md": "77334cd028f0459e3c171372264ccb43c876d4ab19463fc3af78ad64be28738c",
+        "modules/warehouse/postgres/module.yaml": "0c09d40bafeb828a86cfce050686fb55723442c8c84359b446a59aa63f928857",
+        "profiles/local-dagster-postgres-superset/README.md": "4b684c41b98cbde29b7f196e1a062471f3869e46ba1db02036c238a8acded069",
+        "profiles/local-dagster-postgres-superset/environments/dev.yaml": "b12a6cc05ea14f713b3bad5fe14e1457c574b1816b95e5f70b04205d5e65594c",
+        "profiles/local-dagster-postgres-superset/environments/prod.yaml": "11af55067ded4deb81fc0beea8f5fc4f8d229d061777730bac877acbaec07981",
+        "profiles/local-dagster-postgres-superset/init-db.sh": "e79689ba99b78c1f6a55f2c49d3b80d0df60f92378cceb83a10b7e0931ed476d",
+        "profiles/local-dagster-postgres-superset/init-db.sql": "eea6355bf5ed76f16e3627e1ce87cf274c981451a435f80638c6e1a7f0b59af3",
+        "profiles/local-dagster-postgres-superset/profile.yaml": "f522103900eb813e4a1d471b24ecf7a8493f42621f15962acca3591386ea4cc2",
+        "runtime/cds_runtime/__init__.py": "9490630918e127ca8fb2cb5150c3b9695ca22fb4e4b683ffadb8a96ec0d3466d",
+        "runtime/cds_runtime/adapters/__init__.py": "fb4fa126cac317553ecc7e72dde11798b9097609084720373bfd4a19f742596b",
+        "runtime/cds_runtime/adapters/dagster.py": "069c6216f2186368eb8de969d0fb51a6314318799b2e4b6b733bbf6a521fab1d",
+        "runtime/cds_runtime/connections.py": "d989c6ffbec81c6b5a92367172883fdb24420dde87f0901fce6c54b87452ab24",
+        "runtime/cds_runtime/database.py": "5b377f541139a5351c16bd9a09213501b75cee9426343ac5b74607c877d99fe5",
+        "runtime/cds_runtime/errors.py": "8ab1de6dddae4f6832d599693d64c7a05a09707eec3daa1f7cf24bf980e042a0",
+        "runtime/cds_runtime/py.typed": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "runtime/cds_runtime/redaction.py": "8a6729763e22531b4be6203d6bc3d58893a30ebcd303fe98067253ec5448d50e",
+        "runtime/cds_runtime/resolution.py": "091afb1b7e1b6b71faf07c60df782634fbf0c7dc605c9ecd864a2fb276688863",
+        "shared/__init__.py": "778206d0ec545e3d877df7a9cd07188b11e565ebaeb8330015ad3d1ffe8bb665",
+        "shared/python/__init__.py": "778206d0ec545e3d877df7a9cd07188b11e565ebaeb8330015ad3d1ffe8bb665",
+        "shared/python/db/__init__.py": "fc5e902f97a08a34b6874106cf242974b098d874f4e10ff7e0433a4800b2194b",
+        "shared/python/db/connection.py": "4f216b1c36cd2a8fadcb0664aa75be0fcd2de49ba55c6778c10710baf9743a24",
+        "workdirs/dagster/__init__.py": "c1ea51d282422a1274736e204ac57bc4ba26206dcccbb62d3dbe4965fcf6a59a",
+        "workdirs/dagster/definitions.py": "b68526f6a650a41914fc995462ee9770f6edeed6b903138a7e7b69a47c11eb49",
+        "workdirs/dagster/postgres_connection.py": "c612d0c65703fa45b826f217ae946fdf6387fb7ed9297d397cab4fb3a5854aa8",
+        "workdirs/dagster/tender_analytics.py": "8b2f859dc260ed29c75862ea1424b0fa0542dd8d296aaa047d2d0520eda04fa2",
+        "workdirs/db_roundtrip.py": "223f5925f1522db6ceda72f23e3fc21487f441712e3192c5de65e66de5bd264d"
+      },
+      "assets": [
+        {
+          "type": "contract",
+          "id": "dagster.analytics-database.consumed",
+          "direction": "consumed",
+          "kind": "sql-database",
+          "sourcePath": "modules/orchestration/dagster/module.yaml",
+          "sourcePointer": "/spec/consumes/0",
+          "destinationPath": "modules/orchestration/dagster/module.yaml",
+          "destinationPointer": "/spec/consumes/0",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "dagster"
+            }
+          ]
+        },
+        {
+          "type": "contract",
+          "id": "dagster.backup-source.provided",
+          "direction": "provided",
+          "kind": "backup-source",
+          "sourcePath": "modules/orchestration/dagster/module.yaml",
+          "sourcePointer": "/spec/provides/1",
+          "destinationPath": "modules/orchestration/dagster/module.yaml",
+          "destinationPointer": "/spec/provides/1",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "dagster"
+            }
+          ]
+        },
+        {
+          "type": "contract",
+          "id": "dagster.event-log-storage.consumed",
+          "direction": "consumed",
+          "kind": "sql-database",
+          "sourcePath": "modules/orchestration/dagster/module.yaml",
+          "sourcePointer": "/spec/consumes/3",
+          "destinationPath": "modules/orchestration/dagster/module.yaml",
+          "destinationPointer": "/spec/consumes/3",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "dagster"
+            }
+          ]
+        },
+        {
+          "type": "contract",
+          "id": "dagster.http-service.provided",
+          "direction": "provided",
+          "kind": "http-service",
+          "sourcePath": "modules/orchestration/dagster/module.yaml",
+          "sourcePointer": "/spec/provides/0",
+          "destinationPath": "modules/orchestration/dagster/module.yaml",
+          "destinationPointer": "/spec/provides/0",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "dagster"
+            }
+          ]
+        },
+        {
+          "type": "contract",
+          "id": "dagster.lineage-sink.consumed",
+          "direction": "consumed",
+          "kind": "lineage-sink",
+          "sourcePath": "modules/orchestration/dagster/module.yaml",
+          "sourcePointer": "/spec/consumes/1",
+          "destinationPath": "modules/orchestration/dagster/module.yaml",
+          "destinationPointer": "/spec/consumes/1",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "dagster"
+            }
+          ]
+        },
+        {
+          "type": "contract",
+          "id": "dagster.run-storage.consumed",
+          "direction": "consumed",
+          "kind": "sql-database",
+          "sourcePath": "modules/orchestration/dagster/module.yaml",
+          "sourcePointer": "/spec/consumes/2",
+          "destinationPath": "modules/orchestration/dagster/module.yaml",
+          "destinationPointer": "/spec/consumes/2",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "dagster"
+            }
+          ]
+        },
+        {
+          "type": "contract",
+          "id": "dagster.schedule-storage.consumed",
+          "direction": "consumed",
+          "kind": "sql-database",
+          "sourcePath": "modules/orchestration/dagster/module.yaml",
+          "sourcePointer": "/spec/consumes/4",
+          "destinationPath": "modules/orchestration/dagster/module.yaml",
+          "destinationPointer": "/spec/consumes/4",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "dagster"
+            }
+          ]
+        },
+        {
+          "type": "contract",
+          "id": "keydb.cache-service.provided",
+          "direction": "provided",
+          "kind": "cache-service",
+          "sourcePath": "modules/cache/keydb/module.yaml",
+          "sourcePointer": "/spec/provides/0",
+          "destinationPath": "modules/cache/keydb/module.yaml",
+          "destinationPointer": "/spec/provides/0",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "keydb"
+            }
+          ]
+        },
+        {
+          "type": "contract",
+          "id": "postgres.backup-target.provided",
+          "direction": "provided",
+          "kind": "backup-target",
+          "sourcePath": "modules/warehouse/postgres/module.yaml",
+          "sourcePointer": "/spec/provides/5",
+          "destinationPath": "modules/warehouse/postgres/module.yaml",
+          "destinationPointer": "/spec/provides/5",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "postgres"
+            }
+          ]
+        },
+        {
+          "type": "contract",
+          "id": "postgres.dagster-database.provided",
+          "direction": "provided",
+          "kind": "sql-database",
+          "sourcePath": "modules/warehouse/postgres/module.yaml",
+          "sourcePointer": "/spec/provides/1",
+          "destinationPath": "modules/warehouse/postgres/module.yaml",
+          "destinationPointer": "/spec/provides/1",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "postgres"
+            }
+          ]
+        },
+        {
+          "type": "contract",
+          "id": "postgres.data-provider-metadata.provided",
+          "direction": "provided",
+          "kind": "open-data-provider",
+          "sourcePath": "modules/warehouse/postgres/module.yaml",
+          "sourcePointer": "/spec/provides/4",
+          "destinationPath": "modules/warehouse/postgres/module.yaml",
+          "destinationPointer": "/spec/provides/4",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "postgres"
+            }
+          ]
+        },
+        {
+          "type": "contract",
+          "id": "postgres.marquez-database.provided",
+          "direction": "provided",
+          "kind": "sql-database",
+          "sourcePath": "modules/warehouse/postgres/module.yaml",
+          "sourcePointer": "/spec/provides/3",
+          "destinationPath": "modules/warehouse/postgres/module.yaml",
+          "destinationPointer": "/spec/provides/3",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "postgres"
+            }
+          ]
+        },
+        {
+          "type": "contract",
+          "id": "postgres.sql-database.provided",
+          "direction": "provided",
+          "kind": "sql-database",
+          "sourcePath": "modules/warehouse/postgres/module.yaml",
+          "sourcePointer": "/spec/provides/0",
+          "destinationPath": "modules/warehouse/postgres/module.yaml",
+          "destinationPointer": "/spec/provides/0",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "postgres"
+            }
+          ]
+        },
+        {
+          "type": "contract",
+          "id": "postgres.superset-database.provided",
+          "direction": "provided",
+          "kind": "sql-database",
+          "sourcePath": "modules/warehouse/postgres/module.yaml",
+          "sourcePointer": "/spec/provides/2",
+          "destinationPath": "modules/warehouse/postgres/module.yaml",
+          "destinationPointer": "/spec/provides/2",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "postgres"
+            }
+          ]
+        },
+        {
+          "type": "contract",
+          "id": "superset.analytics-database.consumed",
+          "direction": "consumed",
+          "kind": "sql-database",
+          "sourcePath": "modules/bi/superset/module.yaml",
+          "sourcePointer": "/spec/consumes/1",
+          "destinationPath": "modules/bi/superset/module.yaml",
+          "destinationPointer": "/spec/consumes/1",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "superset"
+            }
+          ]
+        },
+        {
+          "type": "contract",
+          "id": "superset.cache-service.consumed",
+          "direction": "consumed",
+          "kind": "cache-service",
+          "sourcePath": "modules/bi/superset/module.yaml",
+          "sourcePointer": "/spec/consumes/2",
+          "destinationPath": "modules/bi/superset/module.yaml",
+          "destinationPointer": "/spec/consumes/2",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "superset"
+            }
+          ]
+        },
+        {
+          "type": "contract",
+          "id": "superset.http-service.provided",
+          "direction": "provided",
+          "kind": "http-service",
+          "sourcePath": "modules/bi/superset/module.yaml",
+          "sourcePointer": "/spec/provides/0",
+          "destinationPath": "modules/bi/superset/module.yaml",
+          "destinationPointer": "/spec/provides/0",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "superset"
+            }
+          ]
+        },
+        {
+          "type": "contract",
+          "id": "superset.metadata-database.consumed",
+          "direction": "consumed",
+          "kind": "sql-database",
+          "sourcePath": "modules/bi/superset/module.yaml",
+          "sourcePointer": "/spec/consumes/0",
+          "destinationPath": "modules/bi/superset/module.yaml",
+          "destinationPointer": "/spec/consumes/0",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "superset"
+            }
+          ]
+        },
+        {
+          "type": "contract",
+          "id": "superset.oidc-provider.consumed",
+          "direction": "consumed",
+          "kind": "oidc-provider",
+          "sourcePath": "modules/bi/superset/module.yaml",
+          "sourcePointer": "/spec/consumes/3",
+          "destinationPath": "modules/bi/superset/module.yaml",
+          "destinationPointer": "/spec/consumes/3",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "superset"
+            }
+          ]
+        },
+        {
+          "type": "module",
+          "id": "dagster",
+          "sourcePath": "modules/orchestration/dagster",
+          "destinationPath": "modules/orchestration/dagster",
+          "dependencies": [
+            {
+              "type": "contract",
+              "id": "postgres.dagster-database.provided"
+            },
+            {
+              "type": "contract",
+              "id": "postgres.sql-database.provided"
+            },
+            {
+              "type": "module",
+              "id": "postgres"
+            }
+          ]
+        },
+        {
+          "type": "module",
+          "id": "keydb",
+          "sourcePath": "modules/cache/keydb",
+          "destinationPath": "modules/cache/keydb",
+          "dependencies": []
+        },
+        {
+          "type": "module",
+          "id": "postgres",
+          "sourcePath": "modules/warehouse/postgres",
+          "destinationPath": "modules/warehouse/postgres",
+          "dependencies": []
+        },
+        {
+          "type": "module",
+          "id": "superset",
+          "sourcePath": "modules/bi/superset",
+          "destinationPath": "modules/bi/superset",
+          "dependencies": [
+            {
+              "type": "contract",
+              "id": "keydb.cache-service.provided"
+            },
+            {
+              "type": "contract",
+              "id": "postgres.sql-database.provided"
+            },
+            {
+              "type": "contract",
+              "id": "postgres.superset-database.provided"
+            },
+            {
+              "type": "module",
+              "id": "keydb"
+            },
+            {
+              "type": "module",
+              "id": "postgres"
+            }
+          ]
+        },
+        {
+          "type": "profile",
+          "id": "local-dagster-postgres-superset",
+          "sourcePath": "profiles/local-dagster-postgres-superset",
+          "destinationPath": "profiles/local-dagster-postgres-superset",
+          "dependencies": [
+            {
+              "type": "module",
+              "id": "dagster"
+            },
+            {
+              "type": "module",
+              "id": "keydb"
+            },
+            {
+              "type": "module",
+              "id": "postgres"
+            },
+            {
+              "type": "module",
+              "id": "superset"
+            }
+          ]
+        },
+        {
+          "type": "runtime",
+          "id": "images/dagster/base/Dockerfile",
+          "sourcePath": "images/dagster/base/Dockerfile",
+          "destinationPath": "images/dagster/base/Dockerfile",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/dagster/dagster.yaml.j2",
+          "sourcePath": "images/dagster/dagster.yaml.j2",
+          "destinationPath": "images/dagster/dagster.yaml.j2",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/dagster/entrypoint.sh",
+          "sourcePath": "images/dagster/entrypoint.sh",
+          "destinationPath": "images/dagster/entrypoint.sh",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/dagster/generate_config.py",
+          "sourcePath": "images/dagster/generate_config.py",
+          "destinationPath": "images/dagster/generate_config.py",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/dagster/hardened/Dockerfile",
+          "sourcePath": "images/dagster/hardened/Dockerfile",
+          "destinationPath": "images/dagster/hardened/Dockerfile",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/dagster/healthcheck.py",
+          "sourcePath": "images/dagster/healthcheck.py",
+          "destinationPath": "images/dagster/healthcheck.py",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/dagster/requirements-postgres.txt",
+          "sourcePath": "images/dagster/requirements-postgres.txt",
+          "destinationPath": "images/dagster/requirements-postgres.txt",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/dagster/requirements.txt",
+          "sourcePath": "images/dagster/requirements.txt",
+          "destinationPath": "images/dagster/requirements.txt",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/dagster/workspace.yaml",
+          "sourcePath": "images/dagster/workspace.yaml",
+          "destinationPath": "images/dagster/workspace.yaml",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/postgres/Dockerfile",
+          "sourcePath": "images/postgres/Dockerfile",
+          "destinationPath": "images/postgres/Dockerfile",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/postgres/cds-backup-scheduler",
+          "sourcePath": "images/postgres/cds-backup-scheduler",
+          "destinationPath": "images/postgres/cds-backup-scheduler",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/postgres/cds-pgbackrest-archive",
+          "sourcePath": "images/postgres/cds-pgbackrest-archive",
+          "destinationPath": "images/postgres/cds-pgbackrest-archive",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/postgres/cds-pgbackrest-get",
+          "sourcePath": "images/postgres/cds-pgbackrest-get",
+          "destinationPath": "images/postgres/cds-pgbackrest-get",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/postgres/cds-restore",
+          "sourcePath": "images/postgres/cds-restore",
+          "destinationPath": "images/postgres/cds-restore",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/superset/base/Dockerfile",
+          "sourcePath": "images/superset/base/Dockerfile",
+          "destinationPath": "images/superset/base/Dockerfile",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/superset/entrypoint-web.sh",
+          "sourcePath": "images/superset/entrypoint-web.sh",
+          "destinationPath": "images/superset/entrypoint-web.sh",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/superset/init.sh",
+          "sourcePath": "images/superset/init.sh",
+          "destinationPath": "images/superset/init.sh",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/superset/requirements-uv.txt",
+          "sourcePath": "images/superset/requirements-uv.txt",
+          "destinationPath": "images/superset/requirements-uv.txt",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/superset/requirements.txt",
+          "sourcePath": "images/superset/requirements.txt",
+          "destinationPath": "images/superset/requirements.txt",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/superset/service-worker.js",
+          "sourcePath": "images/superset/service-worker.js",
+          "destinationPath": "images/superset/service-worker.js",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "images/superset/superset_config.py",
+          "sourcePath": "images/superset/superset_config.py",
+          "destinationPath": "images/superset/superset_config.py",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "runtime/cds_runtime",
+          "sourcePath": "runtime/cds_runtime",
+          "destinationPath": "runtime/cds_runtime",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "shared/__init__.py",
+          "sourcePath": "shared/__init__.py",
+          "destinationPath": "shared/__init__.py",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "shared/python",
+          "sourcePath": "shared/python",
+          "destinationPath": "shared/python",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "workdirs/dagster",
+          "sourcePath": "workdirs/dagster",
+          "destinationPath": "workdirs/dagster",
+          "dependencies": []
+        },
+        {
+          "type": "runtime",
+          "id": "workdirs/db_roundtrip.py",
+          "sourcePath": "workdirs/db_roundtrip.py",
+          "destinationPath": "workdirs/db_roundtrip.py",
+          "dependencies": []
+        }
+      ]
+    }
+  }
+}

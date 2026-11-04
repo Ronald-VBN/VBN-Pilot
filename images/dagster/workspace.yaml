@@ -1,0 +1,4 @@
+load_from:
+- grpc_server:
+    socket: /var/run/dagster/user-code.sock
+    location_name: example_user_code

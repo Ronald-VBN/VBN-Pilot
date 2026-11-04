@@ -1,0 +1,744 @@
+# modules/orchestration/dagster/module.yaml
+# yaml-language-server: $schema=../../../cli/resources/module.schema.json
+apiVersion: cds/v1alpha1
+kind: Module
+
+metadata:
+  name: dagster
+  category: orchestration
+  version: "0.1.0"
+  displayName: Dagster
+  description: >
+    Dagster orchestration service aligned with the Dagster OSS Docker Compose pattern
+    (webserver + daemon), with pluggable storage bindings.
+
+spec:
+  runtime:
+    type: container
+    service:
+      name: dagster
+      ports:
+        - name: http
+          containerPort: 3000
+          protocol: TCP
+      networks:
+        - default
+
+  configSchema:
+    type: object
+    additionalProperties: false
+    required:
+      - webPort
+      - homeDir
+      - storage
+    properties:
+      webPort:
+        type: integer
+        minimum: 1
+        maximum: 65535
+        default: 3000
+
+      kubernetesService:
+        type: object
+        additionalProperties: false
+        default: {}
+        properties:
+          type:
+            type: string
+            enum:
+              - ClusterIP
+              - NodePort
+            default: ClusterIP
+          nodePort:
+            type: integer
+            minimum: 0
+            maximum: 32767
+            default: 0
+
+      homeDir:
+        type: string
+        minLength: 1
+        default: /opt/dagster/dagster_home
+
+      daemon:
+        type: object
+        additionalProperties: false
+        default: {}
+        properties:
+          enabled:
+            type: boolean
+            default: true
+
+      image:
+        type: object
+        additionalProperties: false
+        default: {}
+        properties:
+          variant:
+            type: string
+            enum:
+              - base
+              - hardened
+            defaultByEnvironment:
+              default: base
+              production: hardened
+            description: >
+              Selects the image build directory under images/dagster/ used
+              for the user-code, webserver, and daemon services. "base"
+              builds the default Debian-based (python:3.14-slim) image
+              optimized for compatibility. "hardened" builds the
+              Alpine-based image, which uses a musl/busybox userland
+              instead of glibc/Debian and has a smaller base image. This
+              does not guarantee fewer CVEs at any given time: each
+              distro's own patch cadence for OS packages can leave either
+              variant ahead on open vulnerabilities (see .trivyignore and
+              docs/image-scanning.md). Both variants run as a non-root
+              user with no build tooling in the final image. When omitted,
+              the variant defaults to "hardened" in production profiles and
+              "base" otherwise; an explicit value takes precedence.
+          source:
+            type: string
+            enum:
+              - build
+              - registry
+            default: build
+            description: >
+              Selects how the user-code, webserver, and daemon services
+              obtain their image. "build" (default) builds the image locally
+              from images/dagster/${config.image.variant}/Dockerfile.
+              "registry" pulls the already published, scanned, and signed
+              image from config.image.registry instead of building it,
+              avoiding a local rebuild. Requires image.tag to be set.
+          registry:
+            type: string
+            enum:
+              - dockerhub
+              - ghcr
+            default: dockerhub
+            description: >
+              Registry to pull from when image.source is "registry".
+              "dockerhub" (default) pulls from
+              docker.io/ronaldsoeverein/dagster. "ghcr" pulls from
+              ghcr.io/ronaldhensbergen/cds-dagster instead. Both are
+              published by the same .github/workflows/publish-images.yml
+              run, but their tag schemes differ slightly: GHCR has no
+              version-derived tag, only sha-<sha>/latest (optionally
+              variant/alpine-prefixed) -- see docs/image-signing.md.
+          tag:
+            type: string
+            # cds-registry-tag-source: pypi/dagster -- kept in sync with the
+            # dagster== pin in images/dagster/requirements.txt by Renovate;
+            # see renovate.json's customManagers. Used as the base (non-
+            # variant-prefixed) tag when `cds render/up/test --image-source
+            # registry` is passed without an explicit config.image.tag.
+            default: "1.13.26"
+            description: >
+              Registry tag to pull when image.source is "registry", e.g. a
+              version published by .github/workflows/publish-images.yml
+              (optionally prefixed with the variant, such as
+              "hardened-1.8.0"). Ignored when image.source is "build".
+              Defaults to the pinned dagster PyPI version above, kept in
+              sync by Renovate; pass an explicit config.image.tag
+              to override.
+
+      storage:
+        type: object
+        additionalProperties: false
+        required:
+          - backend
+          - runStorage
+          - eventLogStorage
+          - scheduleStorage
+        properties:
+          backend:
+            type: string
+            enum:
+              - postgres
+              - sqlite
+              - mysql
+            default: postgres
+          enabled:
+            type: boolean
+            default: true
+          runStorage:
+            $ref: "#/$defs/contractBinding"
+          eventLogStorage:
+            $ref: "#/$defs/contractBinding"
+          scheduleStorage:
+            $ref: "#/$defs/contractBinding"
+
+      analyticsDatabase:
+        $ref: "#/$defs/contractBinding"
+
+      lineageSink:
+        $ref: "#/$defs/contractBinding"
+
+      openlineageNamespace:
+        type: string
+        minLength: 1
+        default: dagster
+        description: >-
+          OPENLINEAGE_NAMESPACE convention value, available to any
+          OpenLineage producer the profile's Dagster code location runs
+          (e.g. a job/op using the `openlineage-python` client directly).
+          CDS only wires the connection details (OPENLINEAGE_URL,
+          OPENLINEAGE_ENDPOINT, OPENLINEAGE_API_KEY) and this convention
+          value; it does not ship or run an OpenLineage producer itself --
+          the official `openlineage-dagster` integration package is
+          currently incompatible with modern Dagster releases (it imports
+          the removed `dagster.core` module path), so user code should
+          either use `openlineage-python` directly or track that
+          upstream package for a fix.
+
+      sharedData:
+        type: object
+        additionalProperties: false
+        default: {}
+        properties:
+          hostPath:
+            type: string
+            minLength: 1
+            default: ./workdirs/shared-data
+          containerPath:
+            type: string
+            minLength: 1
+            default: /app/data/cds
+
+      definitionsFile:
+        type: object
+        additionalProperties: false
+        default: {}
+        properties:
+          hostPath:
+            type: string
+            minLength: 1
+            default: ./workdirs/dagster/definitions.py
+          containerPath:
+            type: string
+            minLength: 1
+            pattern: "^/"
+            default: /app/workdirs/dagster/definitions.py
+
+      tenderAnalyticsFile:
+        type: object
+        additionalProperties: false
+        default: {}
+        properties:
+          hostPath:
+            type: string
+            minLength: 1
+            default: ./workdirs/dagster/tender_analytics.py
+          containerPath:
+            type: string
+            minLength: 1
+            pattern: "^/"
+            default: /app/workdirs/dagster/tender_analytics.py
+
+      runLauncher:
+        type: object
+        additionalProperties: false
+        properties:
+          type:
+            type: string
+            enum:
+              - default
+            default: default
+
+      healthcheck:
+        type: object
+        additionalProperties: false
+        default: {}
+        properties:
+          enabled:
+            type: boolean
+            default: true
+
+    $defs:
+      contractBinding:
+        type: object
+        additionalProperties: false
+        required:
+          - contractRef
+        properties:
+          contractRef:
+            type: string
+            pattern: "^[a-z0-9-]+\\.[a-z0-9-]+$"
+
+  consumes:
+    - name: analytics-database
+      contract:
+        kind: sql-database
+      required: false
+      mappedFrom: spec.config.analyticsDatabase
+
+    - name: lineage-sink
+      contract:
+        kind: lineage-sink
+      required: false
+      mappedFrom: spec.config.lineageSink
+
+    - name: run-storage
+      contract:
+        kind: sql-database
+      required: true
+      mappedFrom: spec.config.storage.runStorage
+
+    - name: event-log-storage
+      contract:
+        kind: sql-database
+      required: true
+      mappedFrom: spec.config.storage.eventLogStorage
+
+    - name: schedule-storage
+      contract:
+        kind: sql-database
+      required: true
+      mappedFrom: spec.config.storage.scheduleStorage
+
+  provides:
+    - name: http-service
+      contract:
+        kind: http-service
+        spec:
+          portFrom: spec.config.webPort
+          host: ${service.host}
+          port: ${config.webPort}
+          # The webserver is one of this module's several compose services
+          # (user-code, webserver, daemon); the instance id alone does not
+          # resolve on the Compose network, so route generation maps this
+          # through the renderer's service-naming rule.
+          serviceName: dagster-webserver
+          healthPath: /
+          protocol: http
+
+    - name: backup-source
+      contract:
+        kind: backup-source
+        spec:
+          # The dagster-io-manager-storage named volume holds pipeline
+          # outputs and intermediate data (issue #668): a backup engine
+          # consumes this contract to snapshot that volume on a schedule.
+          # volumeName uses ${service.host} (the profile's module instance
+          # id) because the renderer names Compose volumes
+          # "<module-instance-id>-<volume-name>".
+          kind: volume
+          volumeName: ${service.host}-dagster-io-manager-storage
+          hostPath: ""
+          readOnly: true
+
+  implementation:
+    kind: docker-compose
+    targets:
+      - docker-compose
+      - kubernetes
+    compose:
+      services:
+        user-code:
+          build:
+            context: ../../../
+            dockerfile: images/dagster/${config.image.variant}/Dockerfile
+            args:
+              DB_BACKEND: "${config.storage.backend}"
+          image: local/dagster:custom
+          restart: always
+          init: true
+          read_only: true
+          cap_drop:
+            - ALL
+          security_opt:
+            - no-new-privileges:true
+          tmpfs:
+            - /tmp:rw,noexec,nosuid,nodev,mode=1777
+            - /opt/dagster/dagster_home:rw,noexec,nosuid,nodev,uid=999,gid=999,mode=0700
+          hostname: dagster-user-code
+          command:
+            - dagster
+            - code-server
+            - start
+            - -s
+            - /var/run/dagster/user-code.sock
+            - -f
+            - "${config.definitionsFile.containerPath}"
+          healthcheck:
+            conditionallyEnabledFrom: config.healthcheck.enabled
+            test:
+              - CMD
+              - python
+              - /app/images/dagster/healthcheck.py
+              - --unix
+              - /var/run/dagster/user-code.sock
+            interval: 10s
+            timeout: 15s
+            start_period: 60s
+            retries: 5
+          volumes:
+            - dagster-io-manager-storage:/tmp/io_manager_storage
+            - dagster-grpc-socket:/var/run/dagster
+            - type: bind
+              source: "${config.sharedData.hostPath}"
+              target: "${config.sharedData.containerPath}"
+            - type: bind
+              source: "${config.definitionsFile.hostPath}"
+              target: "${config.definitionsFile.containerPath}"
+              read_only: true
+            - type: bind
+              source: "${config.tenderAnalyticsFile.hostPath}"
+              target: "${config.tenderAnalyticsFile.containerPath}"
+              read_only: true
+          environment:
+            DB_BACKEND: "${config.storage.backend}"
+            DAGSTER_HOME: "${config.homeDir}"
+            DAGSTER_DB_HOST: "${bindings.run-storage.host}"
+            DAGSTER_DB_PORT: "${bindings.run-storage.port}"
+            DAGSTER_DB_NAME: "${bindings.run-storage.database}"
+            DAGSTER_DB_USER: "${bindings.run-storage.username}"
+            DAGSTER_DB_PASSWORD: "${bindings.run-storage.password}"
+            DAGSTER_DB_CONNECTION_URI: "${bindings.run-storage.connectionUri}"
+            ANALYTICS_DB_HOST: "${bindings.analytics-database.host}"
+            ANALYTICS_DB_PORT: "${bindings.analytics-database.port}"
+            ANALYTICS_DB_NAME: "${bindings.analytics-database.database}"
+            ANALYTICS_DB_USER: "${bindings.analytics-database.username}"
+            ANALYTICS_DB_PASSWORD: "${bindings.analytics-database.password}"
+            ANALYTICS_DB_CONNECTION_URI: "${bindings.analytics-database.connectionUri}"
+            CDS_ANALYTICS_DB_HOST: "${bindings.analytics-database.host}"
+            CDS_ANALYTICS_DB_PORT: "${bindings.analytics-database.port}"
+            CDS_ANALYTICS_DB_NAME: "${bindings.analytics-database.database}"
+            CDS_ANALYTICS_DB_USER: "${bindings.analytics-database.username}"
+            CDS_ANALYTICS_DB_PASSWORD: "${bindings.analytics-database.password}"
+            CDS_ANALYTICS_DB_CONNECTION_URI: "${bindings.analytics-database.connectionUri}"
+            CDS_DB_ANALYTICS_CONNECTION_URI: "${bindings.analytics-database.connectionUri}"
+            OPENLINEAGE_URL: "${ifNonempty:bindings.lineage-sink.connectionUri,,}"
+            OPENLINEAGE_ENDPOINT: "${ifNonempty:bindings.lineage-sink.ingestPath,,}"
+            OPENLINEAGE_API_KEY: "${ifNonempty:bindings.lineage-sink.authToken,,}"
+            OPENLINEAGE_NAMESPACE: "${config.openlineageNamespace}"
+        dagster-webserver:
+          build:
+            context: ../../../
+            dockerfile: images/dagster/${config.image.variant}/Dockerfile
+            args:
+              DB_BACKEND: "${config.storage.backend}"
+          image: local/dagster:custom
+          restart: always
+          init: true
+          read_only: true
+          cap_drop:
+            - ALL
+          security_opt:
+            - no-new-privileges:true
+          tmpfs:
+            - /tmp:rw,noexec,nosuid,nodev,mode=1777
+            - /opt/dagster/dagster_home:rw,noexec,nosuid,nodev,uid=999,gid=999,mode=0700
+          depends_on:
+            user-code:
+              condition: service_healthy
+          command:
+            - dagster-webserver
+            - -h
+            - 0.0.0.0
+            - -p
+            - "3000"
+            - -w
+            - workspace.yaml
+          ports:
+            - "${config.webPort}:3000"
+          volumes:
+            - dagster-io-manager-storage:/tmp/io_manager_storage
+            - type: volume
+              source: dagster-grpc-socket
+              target: /var/run/dagster
+              read_only: true
+            - type: bind
+              source: "${config.sharedData.hostPath}"
+              target: "${config.sharedData.containerPath}"
+          environment:
+            DB_BACKEND: "${config.storage.backend}"
+            DAGSTER_HOME: "${config.homeDir}"
+            DAGSTER_DB_HOST: "${bindings.run-storage.host}"
+            DAGSTER_DB_PORT: "${bindings.run-storage.port}"
+            DAGSTER_DB_NAME: "${bindings.run-storage.database}"
+            DAGSTER_DB_USER: "${bindings.run-storage.username}"
+            DAGSTER_DB_PASSWORD: "${bindings.run-storage.password}"
+            DAGSTER_DB_CONNECTION_URI: "${bindings.run-storage.connectionUri}"
+            ANALYTICS_DB_HOST: "${bindings.analytics-database.host}"
+            ANALYTICS_DB_PORT: "${bindings.analytics-database.port}"
+            ANALYTICS_DB_NAME: "${bindings.analytics-database.database}"
+            ANALYTICS_DB_USER: "${bindings.analytics-database.username}"
+            ANALYTICS_DB_PASSWORD: "${bindings.analytics-database.password}"
+            ANALYTICS_DB_CONNECTION_URI: "${bindings.analytics-database.connectionUri}"
+            OPENLINEAGE_URL: "${ifNonempty:bindings.lineage-sink.connectionUri,,}"
+            OPENLINEAGE_ENDPOINT: "${ifNonempty:bindings.lineage-sink.ingestPath,,}"
+            OPENLINEAGE_API_KEY: "${ifNonempty:bindings.lineage-sink.authToken,,}"
+            OPENLINEAGE_NAMESPACE: "${config.openlineageNamespace}"
+          healthcheck:
+            conditionallyEnabledFrom: config.healthcheck.enabled
+            test:
+              - CMD
+              - python
+              - /app/images/dagster/healthcheck.py
+              - localhost
+              - "3000"
+            interval: 10s
+            timeout: 5s
+            retries: 10
+          # Production profiles must not publish the webserver directly on
+          # the host: the TLS reverse proxy is the sole host-published entry
+          # point (CDS-SEC-074, issue #981). Learning/dev profiles keep the
+          # direct publish for local access.
+          production:
+            ports: []
+
+        dagster-daemon:
+          enabledFrom: config.daemon.enabled
+          build:
+            context: ../../../
+            dockerfile: images/dagster/${config.image.variant}/Dockerfile
+            args:
+              DB_BACKEND: "${config.storage.backend}"
+          image: local/dagster:custom
+          restart: on-failure
+          init: true
+          read_only: true
+          cap_drop:
+            - ALL
+          security_opt:
+            - no-new-privileges:true
+          tmpfs:
+            - /tmp:rw,noexec,nosuid,nodev,mode=1777
+            - /opt/dagster/dagster_home:rw,noexec,nosuid,nodev,uid=999,gid=999,mode=0700
+          depends_on:
+            user-code:
+              condition: service_healthy
+          command:
+            - dagster-daemon
+            - run
+          healthcheck:
+            conditionallyEnabledFrom: config.healthcheck.enabled
+            test:
+              - CMD
+              - python
+              - /app/images/dagster/healthcheck.py
+              - --unix
+              - /var/run/dagster/user-code.sock
+            interval: 10s
+            timeout: 15s
+            start_period: 60s
+            retries: 3
+          volumes:
+            - dagster-io-manager-storage:/tmp/io_manager_storage
+            - type: volume
+              source: dagster-grpc-socket
+              target: /var/run/dagster
+              read_only: true
+            - type: bind
+              source: "${config.sharedData.hostPath}"
+              target: "${config.sharedData.containerPath}"
+          environment:
+            DB_BACKEND: "${config.storage.backend}"
+            DAGSTER_HOME: "${config.homeDir}"
+            DAGSTER_DB_HOST: "${bindings.run-storage.host}"
+            DAGSTER_DB_PORT: "${bindings.run-storage.port}"
+            DAGSTER_DB_NAME: "${bindings.run-storage.database}"
+            DAGSTER_DB_USER: "${bindings.run-storage.username}"
+            DAGSTER_DB_PASSWORD: "${bindings.run-storage.password}"
+            DAGSTER_DB_CONNECTION_URI: "${bindings.run-storage.connectionUri}"
+            ANALYTICS_DB_HOST: "${bindings.analytics-database.host}"
+            ANALYTICS_DB_PORT: "${bindings.analytics-database.port}"
+            ANALYTICS_DB_NAME: "${bindings.analytics-database.database}"
+            ANALYTICS_DB_USER: "${bindings.analytics-database.username}"
+            ANALYTICS_DB_PASSWORD: "${bindings.analytics-database.password}"
+            ANALYTICS_DB_CONNECTION_URI: "${bindings.analytics-database.connectionUri}"
+            CDS_ANALYTICS_DB_HOST: "${bindings.analytics-database.host}"
+            CDS_ANALYTICS_DB_PORT: "${bindings.analytics-database.port}"
+            CDS_ANALYTICS_DB_NAME: "${bindings.analytics-database.database}"
+            CDS_ANALYTICS_DB_USER: "${bindings.analytics-database.username}"
+            CDS_ANALYTICS_DB_PASSWORD: "${bindings.analytics-database.password}"
+            CDS_ANALYTICS_DB_CONNECTION_URI: "${bindings.analytics-database.connectionUri}"
+            CDS_DB_ANALYTICS_CONNECTION_URI: "${bindings.analytics-database.connectionUri}"
+            OPENLINEAGE_URL: "${ifNonempty:bindings.lineage-sink.connectionUri,,}"
+            OPENLINEAGE_ENDPOINT: "${ifNonempty:bindings.lineage-sink.ingestPath,,}"
+            OPENLINEAGE_API_KEY: "${ifNonempty:bindings.lineage-sink.authToken,,}"
+            OPENLINEAGE_NAMESPACE: "${config.openlineageNamespace}"
+
+      volumes:
+        dagster-io-manager-storage: {}
+        dagster-grpc-socket: {}
+
+    kubernetes:
+      # Compose shares the code server over a Unix socket in a named volume.
+      # Pods cannot share a socket, so the gRPC server is exposed over TCP and
+      # reached through a Service. See docs/adr/0002-dagster-grpc-over-tcp.md.
+      workloads:
+        user-code:
+          kind: Deployment
+          podSecurityContext:
+            runAsUser: 999
+            runAsGroup: 999
+            runAsNonRoot: true
+            fsGroup: 999
+          containers:
+            - user-code
+          service:
+            type: ClusterIP
+            ports:
+              - name: grpc
+                port: 4000
+                targetPort: 4000
+          containerOverrides:
+            user-code:
+              command:
+                - dagster
+                - code-server
+                - start
+                - -h
+                - 0.0.0.0
+                - -p
+                - "4000"
+                - -f
+                - "${config.definitionsFile.containerPath}"
+              ports:
+                - name: grpc
+                  containerPort: 4000
+              dropVolumeMounts:
+                - /var/run/dagster
+              dropProbes:
+                - liveness
+                - readiness
+                - startup
+              readinessProbe:
+                tcpSocket:
+                  port: 4000
+                initialDelaySeconds: 10
+                periodSeconds: 5
+                failureThreshold: 60
+              livenessProbe:
+                tcpSocket:
+                  port: 4000
+                initialDelaySeconds: 90
+                periodSeconds: 20
+                failureThreshold: 6
+          resources:
+            user-code:
+              requests:
+                cpu: 100m
+                memory: 512Mi
+              limits:
+                memory: 2Gi
+          waitFor:
+            - host: "${bindings.run-storage.host}"
+              port: "${bindings.run-storage.port}"
+              description: Dagster run storage must accept connections before the code server starts.
+        webserver:
+          kind: Deployment
+          podSecurityContext:
+            runAsUser: 999
+            runAsGroup: 999
+            runAsNonRoot: true
+            fsGroup: 999
+          containers:
+            - dagster-webserver
+          service:
+            type: "${config.kubernetesService.type}"
+            ports:
+              - name: http
+                port: "${config.webPort}"
+                targetPort: 3000
+                nodePort: "${config.kubernetesService.nodePort}"
+          containerOverrides:
+            dagster-webserver:
+              # Explicit container port so the k8s render does not depend
+              # on the compose host-publish (cleared in production, #981).
+              ports:
+                - name: http
+                  containerPort: 3000
+              dropVolumeMounts:
+                - /var/run/dagster
+              dropProbes:
+                - liveness
+                - readiness
+                - startup
+              readinessProbe:
+                httpGet:
+                  path: /server_info
+                  port: 3000
+                initialDelaySeconds: 15
+                periodSeconds: 10
+                failureThreshold: 30
+              livenessProbe:
+                httpGet:
+                  path: /server_info
+                  port: 3000
+                initialDelaySeconds: 60
+                periodSeconds: 20
+                failureThreshold: 6
+          resources:
+            dagster-webserver:
+              requests:
+                cpu: 100m
+                memory: 512Mi
+              limits:
+                memory: 2Gi
+          waitFor:
+            - host: "${bindings.run-storage.host}"
+              port: "${bindings.run-storage.port}"
+            - host: "${k8s.service.user-code}"
+              port: 4000
+              description: The code server must serve gRPC before the webserver loads its workspace.
+        daemon:
+          kind: Deployment
+          podSecurityContext:
+            runAsUser: 999
+            runAsGroup: 999
+            runAsNonRoot: true
+            fsGroup: 999
+          containers:
+            - dagster-daemon
+          containerOverrides:
+            dagster-daemon:
+              dropVolumeMounts:
+                - /var/run/dagster
+              dropProbes:
+                - liveness
+                - readiness
+                - startup
+          resources:
+            dagster-daemon:
+              requests:
+                cpu: 50m
+                memory: 256Mi
+              limits:
+                memory: 1Gi
+          waitFor:
+            - host: "${bindings.run-storage.host}"
+              port: "${bindings.run-storage.port}"
+            - host: "${k8s.service.user-code}"
+              port: 4000
+      volumes:
+        dagster-io-manager-storage:
+          type: emptyDir
+        dagster-grpc-socket:
+          type: emptyDir
+      configMaps:
+        definitions:
+          key: definitions.py
+          fromBind: "${config.definitionsFile.hostPath}"
+          mountPath: "${config.definitionsFile.containerPath}"
+          containers:
+            - user-code
+        tender-analytics:
+          key: tender_analytics.py
+          fromBind: "${config.tenderAnalyticsFile.hostPath}"
+          mountPath: "${config.tenderAnalyticsFile.containerPath}"
+          containers:
+            - user-code
+        workspace:
+          key: workspace.yaml
+          mountPath: /app/images/dagster/workspace.yaml
+          containers:
+            - dagster-webserver
+            - dagster-daemon
+          content: |
+            load_from:
+              - grpc_server:
+                  host: ${k8s.service.user-code}
+                  port: 4000
+                  location_name: example_user_code

@@ -1,0 +1,66 @@
+FROM python:3.14-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170 AS builder
+
+ARG DB_BACKEND=postgres
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONUNBUFFERED=1
+WORKDIR /app
+
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY images/dagster/requirements*.txt ./
+# requirements-postgres.txt is a self-contained, hash-locked superset of
+# requirements.txt (it carries the sqlalchemy<2.1 cap), so install exactly one.
+RUN case "$DB_BACKEND" in \
+      postgres) python -m pip install --no-cache-dir --only-binary=:all: --require-hashes -r requirements-postgres.txt ;; \
+      sqlite|mysql) python -m pip install --no-cache-dir --only-binary=:all: --require-hashes -r requirements.txt ;; \
+      *) echo "Unsupported Dagster database backend: $DB_BACKEND" >&2; exit 1 ;; \
+    esac && \
+    python -m pip uninstall --yes pip
+
+FROM python:3.14-slim@sha256:a2b82f3c48559aa0a8446d9af49826b6e2b2016f4cd2afabfe6013ec53729170
+
+ARG DB_BACKEND=postgres
+
+ENV DAGSTER_HOME=/opt/dagster/dagster_home \
+    DAGSTER_IMAGE_DB_BACKEND="$DB_BACKEND" \
+    HOME=/opt/dagster/dagster_home \
+    PATH="/opt/venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+RUN apt-get update && \
+    apt-get upgrade -y --no-install-recommends && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN set -e; \
+    groupadd --system --gid 999 dagster; \
+    useradd --system --uid 999 --no-create-home --gid dagster dagster; \
+    install -d -o dagster -g dagster "$DAGSTER_HOME" /tmp/io_manager_storage /var/run/dagster; \
+    python -m pip uninstall --yes pip 2>/dev/null || true
+
+WORKDIR /app
+
+COPY --from=builder /opt/venv /opt/venv
+COPY shared/__init__.py /app/shared/__init__.py
+COPY shared/python /app/shared/python
+COPY runtime/cds_runtime /app/runtime/cds_runtime
+COPY workdirs/db_roundtrip.py /app/workdirs/db_roundtrip.py
+COPY workdirs/dagster /app/workdirs/dagster
+COPY images/dagster/generate_config.py images/dagster/healthcheck.py images/dagster/dagster.yaml.j2 /app/images/dagster/
+COPY --chmod=0444 images/dagster/workspace.yaml /app/images/dagster/workspace.yaml
+COPY --chmod=0555 images/dagster/entrypoint.sh /entrypoint.sh
+
+USER dagster
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=10s --timeout=10s --start-period=30s --retries=3 \
+  CMD python /app/images/dagster/healthcheck.py --unix /var/run/dagster/user-code.sock
+
+WORKDIR $DAGSTER_HOME
+
+ENTRYPOINT ["/entrypoint.sh"]
+# No CMD — let orchestration layer specify it

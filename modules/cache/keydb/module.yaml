@@ -1,0 +1,173 @@
+# modules/cache/keydb/module.yaml
+# yaml-language-server: $schema=../../../cli/resources/module.schema.json
+apiVersion: cds/v1alpha1
+kind: Module
+
+metadata:
+  name: keydb
+  category: cache
+  version: "0.1.0"
+  displayName: KeyDB
+  description: >
+    KeyDB cache layer. High-performance Redis-compatible cache for session storage,
+    caching, and message passing.
+
+spec:
+  runtime:
+    type: container
+    service:
+      name: keydb
+      ports:
+        - name: keydb
+          containerPort: 6379
+          protocol: TCP
+      networks:
+        - default
+
+  configSchema:
+    type: object
+    additionalProperties: false
+    properties:
+      port:
+        type: integer
+        minimum: 1
+        maximum: 65535
+        default: 6379
+
+      passwordFrom:
+        type: string
+        pattern: "^secrets\\.[a-zA-Z0-9_-]+$"
+        description: >-
+          Secret alias reference (same `secrets`-namespace form as the other
+          *From credential fields) supplying the cache password. The rendered
+          service passes --requirepass to keydb-server, so a set password
+          makes the cache reject unauthenticated clients; when unset the
+          cache accepts unauthenticated connections (development only,
+          rejected by production validation, see issue #206).
+
+      healthcheck:
+        type: object
+        additionalProperties: false
+        default: {}
+        properties:
+          enabled:
+            type: boolean
+            default: true
+
+  provides:
+    - name: cache-service
+      contract:
+        kind: cache-service
+        spec:
+          host: ${service.dns}
+          port: ${config.port}
+          protocol: redis
+          password: ${ifNonempty:config.passwordFrom,,}
+          authentication: ${ifNonempty:config.passwordFrom,required,}
+          connectionUri: "redis://${ifNonempty:config.passwordFrom,:,@}${service.dns}:${config.port}"
+
+  implementation:
+    kind: docker-compose
+    targets:
+      - docker-compose
+      - kubernetes
+    compose:
+      services:
+        keydb:
+          # Official multi-architecture manifest containing KeyDB 6.3.4.
+          image: eqalpha/keydb:6.3.4@sha256:6537505c42355ca1f571276bddf83f5b750f760f07b2a185a676481791e388ac
+          user: keydb
+          init: true
+          read_only: true
+          cap_drop:
+            - ALL
+          security_opt:
+            - no-new-privileges:true
+          pids_limit: 128
+          tmpfs:
+            - /tmp:rw,noexec,nosuid,nodev,uid=999,gid=999,mode=1777
+            - /data:rw,noexec,nosuid,nodev,uid=999,gid=999,mode=0700
+          ports:
+            - "127.0.0.1:${config.port}:6379"
+          environment:
+            KEYDB_PASSWORD: "${ifNonempty:config.passwordFrom,,}"
+          # The upstream image ignores KEYDB_PASSWORD on its own (see
+          # Snapchat/KeyDB#220), so requirepass is applied here through a
+          # shell wrapper that expands the password from the container
+          # environment at start time. CDS's renderer only processes ${...}
+          # expressions, so the $$ escape below reaches Docker Compose
+          # untouched and Compose hands a literal $KEYDB_PASSWORD to /bin/sh;
+          # the resolved password never appears in the rendered Compose file
+          # (docker inspect shows the unexpanded reference). An empty password
+          # keeps the cache unauthenticated, which production validation
+          # rejects (E137, issue #206).
+          command:
+            - /bin/sh
+            - -c
+            - 'exec keydb-server --requirepass "$$KEYDB_PASSWORD"'
+          healthcheck:
+            conditionallyEnabledFrom: config.healthcheck.enabled
+            # Authenticated when a password is set, plain ping otherwise:
+            # redis-compatible CLIs exit 0 even on a NOAUTH error reply, so
+            # the check must verify the reply is actually PONG.
+            test:
+              - CMD-SHELL
+              - 'if [ -n "$$KEYDB_PASSWORD" ]; then keydb-cli -a "$$KEYDB_PASSWORD" ping; else keydb-cli ping; fi | grep -q PONG'
+            interval: 10s
+            timeout: 5s
+            retries: 5
+
+    kubernetes:
+      workloads:
+        keydb:
+          kind: Deployment
+          # compose `user: keydb`; uid/gid 999 in eqalpha/keydb.
+          podSecurityContext:
+            runAsUser: 999
+            runAsGroup: 999
+            runAsNonRoot: true
+          containers:
+            - keydb
+          service:
+            type: ClusterIP
+            ports:
+              - name: redis
+                port: 6379
+                targetPort: 6379
+          resources:
+            keydb:
+              requests:
+                cpu: 50m
+                memory: 128Mi
+              limits:
+                memory: 512Mi
+          # Kubernetes does not interpolate Compose's $$ escape, so the
+          # requirepass wrapper and probes translated from the compose
+          # healthcheck would run with a literal $$KEYDB_PASSWORD. Replace
+          # them with single-$ versions that /bin/sh expands against the
+          # container's KEYDB_PASSWORD env entry (a secretKeyRef for
+          # CDS_CACHE_PASSWORD when a password is configured).
+          containerOverrides:
+            keydb:
+              args:
+                - /bin/sh
+                - -c
+                - 'exec keydb-server --requirepass "$KEYDB_PASSWORD"'
+              readinessProbe:
+                exec:
+                  command:
+                    - /bin/sh
+                    - -c
+                    - 'if [ -n "$KEYDB_PASSWORD" ]; then keydb-cli -a "$KEYDB_PASSWORD" ping; else keydb-cli ping; fi | grep -q PONG'
+                periodSeconds: 10
+                timeoutSeconds: 5
+                failureThreshold: 5
+              livenessProbe:
+                exec:
+                  command:
+                    - /bin/sh
+                    - -c
+                    - 'if [ -n "$KEYDB_PASSWORD" ]; then keydb-cli -a "$KEYDB_PASSWORD" ping; else keydb-cli ping; fi | grep -q PONG'
+                periodSeconds: 10
+                timeoutSeconds: 5
+                failureThreshold: 5

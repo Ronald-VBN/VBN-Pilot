@@ -45,24 +45,19 @@ via `containerOverrides`, independent of the compose host publish.
 ## EmballageTool migration
 
 The `load_emballagetool_stg_to_his` job migrates ADF pipeline
-`02e_Load_STG_and_HIS_data_EmballageTool`. It looks up the source tables in
-`[generate].[SourceColumns]`, removes duplicates from
-`[STG].[tbl_EmballageTool_Data]`, calls each matching
-`[HIS].[sp_<SourceSchema>_<SourceTable>_Merge]` procedure sequentially with
-`IsDeltaload = true`, then calls `[STG].[sp_Empty_STG_Tabels]`. The lookup and
-deduplication run as independent steps; merging waits for both to succeed.
-The source schema defaults to `EmballageTool` and can be overridden in the
-`EMBALLAGETOOL_SOURCE_SCHEMA` environment variable.
+`02e_Load_STG_and_HIS_data_EmballageTool` to the Postgres analytics database
+already configured for Dagster. It removes duplicates from
+`stg.tbl_emballagetool_data` using the ADF partition key
+(`verzender`, `datum`, `ontvanger`, `gebruiker`), upserts the rows into
+`his.tbl_emballagetool_data`, and truncates staging only after the upsert
+succeeds. The history table is created on first run; the staging table must
+be populated by the upstream ingestion process.
 
-Set `EMBALLAGETOOL_DWH_CONNECTION_URI` for both Dagster user-code and daemon
-services. It must be a SQLAlchemy SQL Server URI, for example:
-
-```text
-mssql+pyodbc://<user>:<password>@<host>:1433/<database>?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes
-```
-
-Supply the URI through the deployment's secret mechanism, not in source
-control. The corresponding SQLAlchemy DBAPI driver and any native driver
-dependencies (for example, `pyodbc` and Microsoft ODBC Driver 18) must be
-installed in the Dagster image. The migration does not add a schedule because
-the ADF trigger configuration was not part of the pipeline definition.
+The Postgres upsert replaces the SQL Server-generated merge procedures for
+the EmballageTool `Data` table. Its composite key follows the key columns
+declared by `02e_Get_Metadata_EmballageTool`; the field names/types follow
+the staging table definition in `01e_ImportToStaging_EmballageTool`. The
+pipeline uses the existing `CDS_ANALYTICS_DB_CONNECTION_URI` injected by the
+Dagster/Postgres profile; no SQL Server driver or extra connection secret is
+needed. The ADF trigger configuration was not part of the pipeline
+definition, so no schedule is added.
